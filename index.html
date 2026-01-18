@@ -16,10 +16,19 @@
     const { useState, useRef, useEffect } = React;
 
     function GanttChartEditor() {
-      const [activities, setActivities] = useState([]);
+      const loadSaved = () => {
+        try {
+          const saved = localStorage.getItem('gantt-project');
+          if (saved) return JSON.parse(saved);
+        } catch (e) {}
+        return null;
+      };
+      const saved = loadSaved();
+
+      const [activities, setActivities] = useState(saved?.activities || []);
       const [name, setName] = useState('');
       const [duration, setDuration] = useState('');
-      const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+      const [startDate, setStartDate] = useState(saved?.startDate || new Date().toISOString().split('T')[0]);
       const [draggedIndex, setDraggedIndex] = useState(null);
       const [dragOverIndex, setDragOverIndex] = useState(null);
       const [editingId, setEditingId] = useState(null);
@@ -28,9 +37,56 @@
       const [timeScale, setTimeScale] = useState('days');
 
       const timelineContainerRef = useRef(null);
+      const fileInputRef = useRef(null);
+
+      // Auto-save to localStorage
+      useEffect(() => {
+        localStorage.setItem('gantt-project', JSON.stringify({ startDate, activities }));
+      }, [activities, startDate]);
+
+      const saveToFile = () => {
+        const data = {
+          startDate,
+          activities: activities.map(({ id, ...rest }) => rest)
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'gantt-project.json';
+        a.click();
+        URL.revokeObjectURL(url);
+      };
+
+      const loadFromFile = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const data = JSON.parse(event.target.result);
+            if (data.startDate) setStartDate(data.startDate);
+            if (data.activities && Array.isArray(data.activities)) {
+              setActivities(data.activities.map((a, i) => ({ ...a, id: Date.now() + i })));
+            }
+          } catch (err) {
+            alert('Invalid JSON file');
+          }
+        };
+        reader.readAsText(file);
+        e.target.value = '';
+      };
+
+      const clearAll = () => {
+        if (activities.length === 0) return;
+        if (confirm('Are you sure you want to clear all activities? This cannot be undone.')) {
+          setActivities([]);
+          setStartDate(new Date().toISOString().split('T')[0]);
+        }
+      };
 
       const addActivity = () => {
-        if (name.trim() && duration > 0) {
+        if (name.trim() && duration >= 0 && duration !== '') {
           setActivities([...activities, {
             id: Date.now(),
             name: name.trim(),
@@ -57,7 +113,7 @@
       };
 
       const saveEdit = () => {
-        if (editForm.name.trim() && editForm.duration > 0) {
+        if (editForm.name.trim() && editForm.duration >= 0 && editForm.duration !== '') {
           setActivities(activities.map(a =>
             a.id === editingId
               ? { ...a, name: editForm.name.trim(), duration: parseInt(editForm.duration), dependency: editForm.dependency }
@@ -311,6 +367,11 @@
         'bg-orange-500', 'bg-pink-500', 'bg-teal-500'
       ];
 
+      const fillColors = [
+        '#3b82f6', '#22c55e', '#a855f7',
+        '#f97316', '#ec4899', '#14b8a6'
+      ];
+
       const suggestScale = () => {
         if (totalDuration <= 60) return 'days';
         if (totalDuration <= 180) return 'weeks';
@@ -389,7 +450,7 @@
                   value={duration}
                   onChange={(e) => setDuration(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && addActivity()}
-                  min="1"
+                  min="0"
                   className="w-32 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <button
@@ -454,6 +515,46 @@
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                 </svg>
                 Print
+              </button>
+
+              <div className="border-l border-gray-300 h-6 mx-1"></div>
+
+              <button
+                onClick={saveToFile}
+                className="px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm flex items-center gap-1"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                </svg>
+                Save
+              </button>
+
+              <button
+                onClick={() => fileInputRef.current.click()}
+                className="px-3 py-1.5 bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors text-sm flex items-center gap-1"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                Open
+              </button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={loadFromFile}
+                accept=".json"
+                className="hidden"
+              />
+
+              <button
+                onClick={clearAll}
+                className="px-3 py-1.5 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm flex items-center gap-1"
+                title="Clear all activities"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Clear
               </button>
             </div>
           </div>
@@ -539,7 +640,7 @@
                                   type="number"
                                   value={editForm.duration}
                                   onChange={(e) => setEditForm({...editForm, duration: e.target.value})}
-                                  min="1"
+                                  min="0"
                                   className="w-full px-1 py-1 text-sm text-center border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                                 />
                               </div>
@@ -649,17 +750,33 @@
                               ))}
                             </div>
                             <div className="absolute inset-y-0 flex items-center" style={{ left: barPos.left }}>
-                              <div
-                                className={`${color} h-8 rounded text-white text-xs flex items-center justify-center shadow-sm`}
-                                style={{ width: barPos.width }}
-                                title={`${activity.name}: ${formatDate(activityStartDate, 'withYear')} - ${formatDate(activityEndDate, 'withYear')} (${activity.duration} days)`}
-                              >
-                                {barPos.width > 120 && (
-                                  <span className="px-1 truncate">
-                                    {formatDate(activityStartDate, 'withYear')} - {formatDate(activityEndDate, 'withYear')}
-                                  </span>
-                                )}
-                              </div>
+                              {activity.duration === 0 ? (
+                                <svg
+                                  width="20"
+                                  height="20"
+                                  viewBox="0 0 20 20"
+                                  style={{ marginLeft: '-10px' }}
+                                  title={`${activity.name}: ${formatDate(activityStartDate, 'withYear')} (Milestone)`}
+                                >
+                                  <polygon
+                                    points="10,0 20,10 10,20 0,10"
+                                    fill={fillColors[index % fillColors.length]}
+                                    className="drop-shadow-sm"
+                                  />
+                                </svg>
+                              ) : (
+                                <div
+                                  className={`${color} h-8 rounded text-white text-xs flex items-center justify-center shadow-sm`}
+                                  style={{ width: barPos.width }}
+                                  title={`${activity.name}: ${formatDate(activityStartDate, 'withYear')} - ${formatDate(activityEndDate, 'withYear')} (${activity.duration} days)`}
+                                >
+                                  {barPos.width > 120 && (
+                                    <span className="px-1 truncate">
+                                      {formatDate(activityStartDate, 'withYear')} - {formatDate(activityEndDate, 'withYear')}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </div>
                         );
@@ -683,6 +800,11 @@
             <span className="font-medium">Legend:</span>
             <span className="ml-2 px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">FS</span> Finish-to-Start
             <span className="ml-3 px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">SS</span> Start-to-Start
+            <span className="ml-3">|</span>
+            <svg className="inline-block ml-2 align-middle" width="12" height="12" viewBox="0 0 20 20">
+              <polygon points="10,0 20,10 10,20 0,10" fill="#3b82f6" />
+            </svg>
+            <span className="ml-1">Milestone (0 days)</span>
             {timeScale === 'days' && (
               <>
                 <span className="ml-3">|</span>
