@@ -1,19 +1,43 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="blueprint">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gantt Chart Editor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body>
   <div id="root"></div>
 
   <script type="text/babel">
     const { useState, useRef, useEffect } = React;
+
+    // Theme configurations
+    const THEMES = {
+      blueprint: {
+        name: 'Architectural Blueprint',
+        description: 'Professional and refined'
+      },
+      fun: {
+        name: 'Fun & Vibrant',
+        description: 'Playful and energetic'
+      },
+      traditional: {
+        name: 'Traditional',
+        description: 'Classic and familiar'
+      },
+      dark: {
+        name: 'Dark Mode',
+        description: 'Easy on the eyes'
+      }
+    };
 
     function GanttChartEditor() {
       const loadSaved = () => {
@@ -35,14 +59,20 @@
       const [editForm, setEditForm] = useState({ name: '', duration: '', dependency: 'FS' });
       const [unitWidth, setUnitWidth] = useState(36);
       const [timeScale, setTimeScale] = useState('days');
+      const [theme, setTheme] = useState(saved?.theme || 'blueprint');
 
       const timelineContainerRef = useRef(null);
       const fileInputRef = useRef(null);
 
+      // Apply theme to document
+      useEffect(() => {
+        document.documentElement.setAttribute('data-theme', theme);
+      }, [theme]);
+
       // Auto-save to localStorage
       useEffect(() => {
-        localStorage.setItem('gantt-project', JSON.stringify({ startDate, activities }));
-      }, [activities, startDate]);
+        localStorage.setItem('gantt-project', JSON.stringify({ startDate, activities, theme }));
+      }, [activities, startDate, theme]);
 
       const saveToFile = () => {
         const data = {
@@ -89,7 +119,6 @@
       const breakLongWords = (text) => {
         return text.split(' ').map(word => {
           if (word.length <= 16) return word;
-          // Insert spaces every 16 characters
           return word.match(/.{1,16}/g).join(' ');
         }).join(' ');
       };
@@ -254,7 +283,6 @@
           const numWeeks = Math.max(Math.ceil(totalDuration / 7), 4);
           for (let i = 0; i < numWeeks; i++) {
             const weekStart = addDays(projectStartDate, i * 7);
-            const weekEnd = addDays(weekStart, 6);
             units.push({
               date: weekStart,
               label: `W${i + 1}`,
@@ -371,15 +399,19 @@
         return { left: 0, width: 0 };
       };
 
-      const colors = [
-        'bg-blue-500', 'bg-green-500', 'bg-purple-500',
-        'bg-orange-500', 'bg-pink-500', 'bg-teal-500'
-      ];
+      // Bar color classes
+      const barColors = ['bar-1', 'bar-2', 'bar-3', 'bar-4', 'bar-5', 'bar-6'];
 
-      const fillColors = [
-        '#3b82f6', '#22c55e', '#a855f7',
-        '#f97316', '#ec4899', '#14b8a6'
-      ];
+      // Get CSS variable value for fill colors
+      const getFillColor = (index) => {
+        const colors = {
+          blueprint: ['#64748b', '#84a98c', '#c9a96e', '#c9a9a6', '#94a3b8', '#d4a574'],
+          fun: ['#f472b6', '#a78bfa', '#60a5fa', '#34d399', '#fbbf24', '#fb923c'],
+          traditional: ['#0d6efd', '#198754', '#ffc107', '#dc3545', '#6f42c1', '#fd7e14'],
+          dark: ['#6366f1', '#22c55e', '#f59e0b', '#ec4899', '#06b6d4', '#8b5cf6']
+        };
+        return colors[theme]?.[index % 6] || colors.blueprint[index % 6];
+      };
 
       const suggestScale = () => {
         if (totalDuration <= 60) return 'days';
@@ -407,409 +439,472 @@
         else setUnitWidth(80);
       };
 
+      // Icon components
+      const IconGrip = () => (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" opacity="0.4">
+          <circle cx="8" cy="6" r="2"/><circle cx="16" cy="6" r="2"/>
+          <circle cx="8" cy="12" r="2"/><circle cx="16" cy="12" r="2"/>
+          <circle cx="8" cy="18" r="2"/><circle cx="16" cy="18" r="2"/>
+        </svg>
+      );
+
+      const IconEdit = () => (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+        </svg>
+      );
+
+      const IconCheck = () => (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      );
+
+      const IconX = () => (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      );
+
+      const IconDownload = () => (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+      );
+
+      const IconUpload = () => (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+      );
+
+      const IconPrinter = () => (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/>
+        </svg>
+      );
+
+      const IconTrash = () => (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+        </svg>
+      );
+
+      const IconPlus = () => (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+      );
+
+      const IconPalette = () => (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/>
+          <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.555C21.965 6.012 17.461 2 12 2z"/>
+        </svg>
+      );
+
       return (
-        <div className="p-6 max-w-6xl mx-auto">
-          <style>{`
-            @media print {
-              body * { visibility: hidden; }
-              .gantt-print-area, .gantt-print-area * { visibility: visible; }
-              .gantt-print-area { position: absolute; left: 0; top: 0; width: 100%; }
-              .no-print { display: none !important; }
-              .print-title { display: block !important; }
-              * {
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-                color-adjust: exact !important;
-              }
-              .bg-blue-500 { background-color: rgb(59, 130, 246) !important; }
-              .bg-green-500 { background-color: rgb(34, 197, 94) !important; }
-              .bg-purple-500 { background-color: rgb(168, 85, 247) !important; }
-              .bg-orange-500 { background-color: rgb(249, 115, 22) !important; }
-              .bg-pink-500 { background-color: rgb(236, 72, 153) !important; }
-              .bg-teal-500 { background-color: rgb(20, 184, 166) !important; }
-            }
-          `}</style>
-
-          <div className="no-print">
-            <h1 className="text-2xl font-bold mb-2 text-gray-800">Gantt Chart Editor</h1>
-            <p className="text-gray-500 text-sm mb-6">Drag to reorder • Click edit to change dependency type (FS/SS)</p>
-
-            <div className="flex flex-wrap gap-3 mb-4">
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-gray-700">Start Date:</label>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div className="flex-1 flex gap-3">
-                <input
-                  type="text"
-                  placeholder="Activity name / description"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && addActivity()}
-                  maxLength={100}
-                  className="flex-1 min-w-64 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <input
-                  type="number"
-                  placeholder="Duration (days)"
-                  value={duration}
-                  onChange={(e) => setDuration(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && addActivity()}
-                  min="0"
-                  className="w-32 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <button
-                  onClick={addActivity}
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-                >
-                  Add
-                </button>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-4 mb-4 p-3 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-gray-700">Scale:</label>
-                <select
-                  value={timeScale}
-                  onChange={(e) => {
-                    setTimeScale(e.target.value);
-                    if (e.target.value === 'days') setUnitWidth(36);
-                    else if (e.target.value === 'weeks') setUnitWidth(60);
-                    else setUnitWidth(80);
-                  }}
-                  className="px-3 py-1.5 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="days">Days</option>
-                  <option value="weeks">Weeks</option>
-                  <option value="months">Months</option>
-                </select>
-                <button
-                  onClick={autoScale}
-                  className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors text-sm"
-                  title="Automatically select best scale for duration"
-                >
-                  Auto
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-gray-700">Zoom:</label>
-                <input
-                  type="range"
-                  min="20"
-                  max="100"
-                  value={unitWidth}
-                  onChange={(e) => setUnitWidth(parseInt(e.target.value))}
-                  className="w-24"
-                />
-              </div>
-
-              <button
-                onClick={fitToView}
-                className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors text-sm"
-              >
-                Fit to View
-              </button>
-
-              <button
-                onClick={handlePrint}
-                className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm flex items-center gap-1"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                </svg>
-                Print
-              </button>
-
-              <div className="border-l border-gray-300 h-6 mx-1"></div>
-
-              <button
-                onClick={saveToFile}
-                className="px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm flex items-center gap-1"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-                </svg>
-                Save
-              </button>
-
-              <button
-                onClick={() => fileInputRef.current.click()}
-                className="px-3 py-1.5 bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors text-sm flex items-center gap-1"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                </svg>
-                Open
-              </button>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={loadFromFile}
-                accept=".json"
-                className="hidden"
-              />
-
-              <button
-                onClick={clearAll}
-                className="px-3 py-1.5 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm flex items-center gap-1"
-                title="Clear all activities"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-                Clear
-              </button>
-            </div>
-          </div>
-
-          {activities.length === 0 ? (
-            <p className="text-gray-500 text-center py-8 no-print">Add activities to see the Gantt chart</p>
-          ) : (
-            <div className="gantt-print-area">
-              <div className="print-title hidden mb-4">
-                <h1 className="text-xl font-bold text-gray-800">Project Gantt Chart</h1>
-                <p className="text-sm text-gray-600">
-                  {formatDate(projectStartDate, 'withYear')} → {formatDate(addDays(projectStartDate, totalDuration - 1), 'withYear')} ({totalDuration} days)
-                </p>
-              </div>
-
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
-                {/* Header Row */}
-                <div className="flex bg-gray-100 border-b border-gray-200">
-                  <div className="flex-shrink-0 flex">
-                    <div className="w-8 px-2 py-2 border-r border-gray-200 no-print"></div>
-                    <div className="w-64 px-3 py-2 font-semibold text-gray-700 border-r border-gray-200">Activity</div>
-                    <div className="w-16 px-2 py-2 font-semibold text-gray-700 border-r border-gray-200 text-center">Days</div>
-                    <div className="w-14 px-2 py-2 font-semibold text-gray-700 border-r border-gray-200 text-center">Type</div>
+        <div className="min-h-screen p-6 md:p-8">
+          <div className="max-w-7xl mx-auto">
+            {/* Header */}
+            <div className="no-print mb-8 animate-fade-in">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="app-header-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="4" width="18" height="4" rx="1"/><rect x="3" y="10" width="12" height="4" rx="1"/><rect x="3" y="16" width="15" height="4" rx="1"/>
+                    </svg>
                   </div>
-                  <div className="flex-1 px-2 py-2 font-semibold text-gray-700">
-                    Timeline ({timeScale})
+                  <div>
+                    <h1 className="text-2xl font-semibold text-primary tracking-tight">Gantt Chart</h1>
+                    <p className="text-sm text-muted">Plan and visualize your project timeline</p>
                   </div>
                 </div>
 
-                {/* Timeline Header Row */}
-                <div className="flex border-b border-gray-200">
-                  <div className="flex-shrink-0 flex bg-gray-50 h-12">
-                    <div className="w-8 border-r border-gray-200 no-print"></div>
-                    <div className="w-64 border-r border-gray-200"></div>
-                    <div className="w-16 border-r border-gray-200"></div>
-                    <div className="w-14 border-r border-gray-200"></div>
-                  </div>
-                  <div className="flex-1 overflow-x-auto" ref={timelineContainerRef}>
-                    <div className="flex bg-gray-50 text-xs text-gray-500 h-12" style={{ width: timelineWidth, minWidth: '100%' }}>
-                      {timelineUnits.map((unit, i) => (
-                        <div
-                          key={i}
-                          className={`text-center border-r border-gray-200 last:border-r-0 flex flex-col justify-center
-                            ${unit.isWeekend ? 'bg-gray-100' : ''}
-                            ${unit.isFirstOfPeriod ? 'border-l-2 border-l-gray-400' : ''}`}
-                          style={{ width: unitWidth, minWidth: unitWidth }}
-                        >
-                          <div className="font-medium leading-tight truncate px-0.5">{unit.label}</div>
-                          <div className="text-gray-400 text-xs truncate leading-tight px-0.5">{unit.subLabel}</div>
-                        </div>
-                      ))}
+                {/* Theme Selector */}
+                <div className="theme-selector">
+                  <IconPalette />
+                  <label>Theme</label>
+                  <select
+                    value={theme}
+                    onChange={(e) => setTheme(e.target.value)}
+                    className="select-refined"
+                  >
+                    {Object.entries(THEMES).map(([key, value]) => (
+                      <option key={key} value={key}>{value.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Add Activity Form */}
+            <div className="no-print card p-5 mb-6 animate-fade-in" style={{ animationDelay: '0.05s' }}>
+              <div className="flex flex-wrap gap-4 items-end">
+                <div className="flex-shrink-0">
+                  <label className="block text-xs font-medium text-muted uppercase tracking-wider mb-2">Project Start</label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="input-refined w-40"
+                  />
+                </div>
+                <div className="flex-1 min-w-[280px]">
+                  <label className="block text-xs font-medium text-muted uppercase tracking-wider mb-2">Activity Name</label>
+                  <input
+                    type="text"
+                    placeholder="Enter activity description..."
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && addActivity()}
+                    maxLength={100}
+                    className="input-refined w-full"
+                  />
+                </div>
+                <div className="w-28">
+                  <label className="block text-xs font-medium text-muted uppercase tracking-wider mb-2">Duration</label>
+                  <input
+                    type="number"
+                    placeholder="Days"
+                    value={duration}
+                    onChange={(e) => setDuration(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && addActivity()}
+                    min="0"
+                    className="input-refined w-full text-center font-mono"
+                  />
+                </div>
+                <button onClick={addActivity} className="btn btn-accent">
+                  <IconPlus /> Add Activity
+                </button>
+              </div>
+            </div>
+
+            {/* Toolbar */}
+            <div className="no-print card p-4 mb-6 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-muted uppercase tracking-wider">Scale</span>
+                  <select
+                    value={timeScale}
+                    onChange={(e) => {
+                      setTimeScale(e.target.value);
+                      if (e.target.value === 'days') setUnitWidth(36);
+                      else if (e.target.value === 'weeks') setUnitWidth(60);
+                      else setUnitWidth(80);
+                    }}
+                    className="select-refined"
+                  >
+                    <option value="days">Days</option>
+                    <option value="weeks">Weeks</option>
+                    <option value="months">Months</option>
+                  </select>
+                  <button onClick={autoScale} className="btn btn-secondary btn-sm" title="Auto-select best scale">
+                    Auto
+                  </button>
+                </div>
+
+                <div className="divider"></div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-muted uppercase tracking-wider">Zoom</span>
+                  <input
+                    type="range"
+                    min="20"
+                    max="100"
+                    value={unitWidth}
+                    onChange={(e) => setUnitWidth(parseInt(e.target.value))}
+                    className="w-24"
+                  />
+                  <button onClick={fitToView} className="btn btn-secondary btn-sm">
+                    Fit
+                  </button>
+                </div>
+
+                <div className="flex-1"></div>
+
+                <div className="flex items-center gap-2">
+                  <button onClick={handlePrint} className="btn btn-secondary btn-sm">
+                    <IconPrinter /> Print
+                  </button>
+                  <button onClick={saveToFile} className="btn btn-secondary btn-sm">
+                    <IconDownload /> Save
+                  </button>
+                  <button onClick={() => fileInputRef.current.click()} className="btn btn-secondary btn-sm">
+                    <IconUpload /> Open
+                  </button>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={loadFromFile}
+                    accept=".json"
+                    className="hidden"
+                  />
+                  <button onClick={clearAll} className="btn btn-danger btn-sm" title="Clear all activities">
+                    <IconTrash /> Clear
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Gantt Chart */}
+            {activities.length === 0 ? (
+              <div className="card empty-state no-print animate-fade-in" style={{ animationDelay: '0.15s' }}>
+                <div className="empty-state-icon">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-faint">
+                    <rect x="3" y="4" width="18" height="4" rx="1"/><rect x="3" y="10" width="12" height="4" rx="1"/><rect x="3" y="16" width="15" height="4" rx="1"/>
+                  </svg>
+                </div>
+                <p className="text-secondary font-medium mb-1">No activities yet</p>
+                <p className="text-faint text-sm">Add your first activity above to start building your timeline</p>
+              </div>
+            ) : (
+              <div className="gantt-print-area animate-fade-in" style={{ animationDelay: '0.15s' }}>
+                <div className="print-title hidden mb-4">
+                  <h1 className="text-xl font-semibold text-primary">Project Gantt Chart</h1>
+                  <p className="text-sm text-muted">
+                    {formatDate(projectStartDate, 'withYear')} — {formatDate(addDays(projectStartDate, totalDuration - 1), 'withYear')} ({totalDuration} days)
+                  </p>
+                </div>
+
+                <div className="card overflow-hidden">
+                  {/* Header Row */}
+                  <div className="flex gantt-header">
+                    <div className="flex-shrink-0 flex">
+                      <div className="w-10 px-2 py-3 gantt-cell no-print"></div>
+                      <div className="w-64 px-4 py-3 font-medium text-xs text-muted uppercase tracking-wider gantt-cell">Activity</div>
+                      <div className="w-16 px-2 py-3 font-medium text-xs text-muted uppercase tracking-wider gantt-cell text-center">Days</div>
+                      <div className="w-14 px-2 py-3 font-medium text-xs text-muted uppercase tracking-wider gantt-cell text-center">Type</div>
+                    </div>
+                    <div className="flex-1 px-3 py-3 font-medium text-xs text-muted uppercase tracking-wider">
+                      Timeline <span className="lowercase font-normal">({timeScale})</span>
                     </div>
                   </div>
-                </div>
 
-                {/* Activity Rows */}
-                {activities.map((activity, index) => {
-                  const isDragging = draggedIndex === index;
-                  const isDragOver = dragOverIndex === index;
-                  const isEditing = editingId === activity.id;
-                  const start = startTimes[index];
-                  const color = colors[index % colors.length];
-                  const activityStartDate = addDays(projectStartDate, start);
-                  const activityEndDate = addDays(projectStartDate, start + activity.duration - 1);
-                  const barPos = getBarPosition(start, activity.duration);
+                  {/* Timeline Header Row */}
+                  <div className="flex border-b border-primary">
+                    <div className="flex-shrink-0 flex bg-secondary h-12" style={{ opacity: 0.5 }}>
+                      <div className="w-10 gantt-cell no-print"></div>
+                      <div className="w-64 gantt-cell"></div>
+                      <div className="w-16 gantt-cell"></div>
+                      <div className="w-14 gantt-cell"></div>
+                    </div>
+                    <div className="flex-1 overflow-x-auto custom-scroll" ref={timelineContainerRef}>
+                      <div className="flex text-xs h-12" style={{ width: timelineWidth, minWidth: '100%', background: 'var(--bg-secondary)', opacity: 0.5 }}>
+                        {timelineUnits.map((unit, i) => (
+                          <div
+                            key={i}
+                            className={`timeline-unit text-center flex flex-col justify-center
+                              ${unit.isWeekend ? 'weekend' : ''}
+                              ${unit.isFirstOfPeriod ? 'first-of-period' : ''}`}
+                            style={{ width: unitWidth, minWidth: unitWidth }}
+                          >
+                            <div className="font-medium text-secondary leading-tight truncate px-0.5">{unit.label}</div>
+                            <div className="text-faint text-[10px] truncate leading-tight px-0.5">{unit.subLabel}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
 
-                  return (
-                    <div
-                      key={activity.id}
-                      draggable={!isEditing}
-                      onDragStart={(e) => handleDragStart(e, index)}
-                      onDragOver={(e) => handleDragOver(e, index)}
-                      onDragLeave={handleDragLeave}
-                      onDrop={(e) => handleDrop(e, index)}
-                      onDragEnd={handleDragEnd}
-                      className={`
-                        flex border-b border-gray-200 last:border-b-0 transition-all duration-150
-                        ${isDragging ? 'opacity-50 bg-blue-50' : 'hover:bg-gray-50'}
-                        ${isDragOver ? 'border-t-2 border-t-blue-500' : ''}
-                        ${isEditing ? 'bg-yellow-50' : ''}
-                      `}
-                    >
-                      {/* Left side - Activity info */}
-                      <div className="flex-shrink-0 flex min-h-12">
-                        <div className="w-8 px-2 border-r border-gray-200 flex items-center justify-center cursor-grab active:cursor-grabbing no-print">
-                          <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M7 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/>
-                          </svg>
-                        </div>
+                  {/* Activity Rows */}
+                  {activities.map((activity, index) => {
+                    const isDragging = draggedIndex === index;
+                    const isDragOver = dragOverIndex === index;
+                    const isEditing = editingId === activity.id;
+                    const start = startTimes[index];
+                    const barColor = barColors[index % barColors.length];
+                    const activityStartDate = addDays(projectStartDate, start);
+                    const activityEndDate = addDays(projectStartDate, start + activity.duration - 1);
+                    const barPos = getBarPosition(start, activity.duration);
 
-                        {isEditing ? (
-                          <>
-                            <div className="w-64 px-2 border-r border-gray-200 flex items-center gap-1 no-print">
-                              <input
-                                type="text"
-                                value={editForm.name}
-                                onChange={(e) => setEditForm({...editForm, name: e.target.value})}
-                                maxLength={100}
-                                className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                autoFocus
-                              />
-                              <button onClick={saveEdit} className="p-1 text-green-600 hover:text-green-700" title="Save">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
-                              </button>
-                              <button onClick={cancelEdit} className="p-1 text-red-500 hover:text-red-600" title="Cancel">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                              </button>
-                            </div>
-                            <div className="w-16 px-1 border-r border-gray-200 flex items-center no-print">
-                              <input
-                                type="number"
-                                value={editForm.duration}
-                                onChange={(e) => setEditForm({...editForm, duration: e.target.value})}
-                                min="0"
-                                className="w-full px-1 py-1 text-sm text-center border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                              />
-                            </div>
-                            <div className="w-14 px-1 border-r border-gray-200 flex items-center no-print">
-                              <select
-                                value={editForm.dependency}
-                                onChange={(e) => setEditForm({...editForm, dependency: e.target.value})}
-                                className="w-full px-1 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                              >
-                                <option value="FS">FS</option>
-                                <option value="SS">SS</option>
-                              </select>
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <div className="w-64 px-3 py-2 border-r border-gray-200 flex items-start justify-between">
-                              <span className="text-sm leading-tight break-words">{activity.name}</span>
-                              <div className="flex items-center gap-1 ml-2 flex-shrink-0 no-print">
-                                <button onClick={() => startEditing(activity)} className="text-gray-400 hover:text-blue-500" title="Edit">
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                  </svg>
+                    return (
+                      <div
+                        key={activity.id}
+                        draggable={!isEditing}
+                        onDragStart={(e) => handleDragStart(e, index)}
+                        onDragOver={(e) => handleDragOver(e, index)}
+                        onDragLeave={handleDragLeave}
+                        onDrop={(e) => handleDrop(e, index)}
+                        onDragEnd={handleDragEnd}
+                        className={`
+                          flex gantt-row animate-slide-in
+                          ${isDragging ? 'dragging' : ''}
+                          ${isDragOver ? 'drag-over' : ''}
+                          ${isEditing ? 'editing' : ''}
+                        `}
+                        style={{ animationDelay: `${index * 0.03}s` }}
+                      >
+                        {/* Left side - Activity info */}
+                        <div className="flex-shrink-0 flex min-h-14">
+                          <div className="w-10 px-2 gantt-cell flex items-center justify-center cursor-grab active:cursor-grabbing no-print text-faint hover:text-secondary transition-colors">
+                            <IconGrip />
+                          </div>
+
+                          {isEditing ? (
+                            <>
+                              <div className="w-64 px-3 py-2 gantt-cell flex items-center gap-2 no-print">
+                                <input
+                                  type="text"
+                                  value={editForm.name}
+                                  onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                                  maxLength={100}
+                                  className="input-refined flex-1 py-1.5 text-sm"
+                                  autoFocus
+                                />
+                                <button onClick={saveEdit} className="p-1.5 text-green-600 hover:text-green-700 hover:bg-green-50 rounded transition-colors" title="Save">
+                                  <IconCheck />
                                 </button>
-                                <button onClick={() => removeActivity(activity.id)} className="text-gray-400 hover:text-red-500 text-lg leading-none" title="Delete">
-                                  ×
+                                <button onClick={cancelEdit} className="p-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Cancel">
+                                  <IconX />
                                 </button>
                               </div>
-                            </div>
-                            <div className="w-16 px-2 border-r border-gray-200 text-center text-gray-600 flex items-center justify-center">
-                              {activity.duration}
-                            </div>
-                            <div className="w-14 px-2 border-r border-gray-200 flex items-center justify-center">
-                              <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
-                                activity.dependency === 'SS'
-                                  ? 'bg-amber-100 text-amber-700'
-                                  : 'bg-blue-100 text-blue-700'
-                              }`}>
-                                {activity.dependency || 'FS'}
-                              </span>
-                            </div>
-                          </>
-                        )}
-                      </div>
-
-                      {/* Right side - Timeline bar */}
-                      <div className="flex-1 relative min-h-12 overflow-hidden">
-                        <div className="absolute inset-0 flex">
-                          {timelineUnits.map((unit, i) => (
-                            <div
-                              key={i}
-                              className={`border-r border-gray-100 h-full ${unit.isWeekend ? 'bg-gray-50' : ''}`}
-                              style={{ width: unitWidth, minWidth: unitWidth }}
-                            />
-                          ))}
-                        </div>
-                        <div className="absolute inset-y-0 flex items-center" style={{ left: barPos.left }}>
-                          {activity.duration === 0 ? (
-                            <svg
-                              width="20"
-                              height="20"
-                              viewBox="0 0 20 20"
-                              style={{ marginLeft: '-10px' }}
-                              title={`${activity.name}: ${formatDate(activityStartDate, 'withYear')} (Milestone)`}
-                            >
-                              <polygon
-                                points="10,0 20,10 10,20 0,10"
-                                fill={fillColors[index % fillColors.length]}
-                                className="drop-shadow-sm"
-                              />
-                            </svg>
+                              <div className="w-16 px-1 gantt-cell flex items-center no-print">
+                                <input
+                                  type="number"
+                                  value={editForm.duration}
+                                  onChange={(e) => setEditForm({...editForm, duration: e.target.value})}
+                                  min="0"
+                                  className="input-refined w-full py-1.5 text-sm text-center font-mono"
+                                />
+                              </div>
+                              <div className="w-14 px-1 gantt-cell flex items-center no-print">
+                                <select
+                                  value={editForm.dependency}
+                                  onChange={(e) => setEditForm({...editForm, dependency: e.target.value})}
+                                  className="select-refined w-full py-1.5 text-xs"
+                                  style={{ paddingRight: '24px' }}
+                                >
+                                  <option value="FS">FS</option>
+                                  <option value="SS">SS</option>
+                                </select>
+                              </div>
+                            </>
                           ) : (
-                            <div
-                              className={`${color} h-8 rounded text-white text-xs flex items-center justify-center shadow-sm`}
-                              style={{ width: barPos.width }}
-                              title={`${activity.name}: ${formatDate(activityStartDate, 'withYear')} - ${formatDate(activityEndDate, 'withYear')} (${activity.duration} days)`}
-                            >
-                              {barPos.width > 120 && (
-                                <span className="px-1 truncate">
-                                  {formatDate(activityStartDate, 'withYear')} - {formatDate(activityEndDate, 'withYear')}
+                            <>
+                              <div className="w-64 px-4 py-3 gantt-cell flex items-start justify-between group">
+                                <span className="text-sm text-primary leading-snug break-words pr-2">{activity.name}</span>
+                                <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity no-print">
+                                  <button onClick={() => startEditing(activity)} className="p-1.5 text-faint hover:text-secondary rounded transition-colors" title="Edit">
+                                    <IconEdit />
+                                  </button>
+                                  <button onClick={() => removeActivity(activity.id)} className="p-1.5 text-faint hover:text-red-500 rounded transition-colors" title="Delete">
+                                    <IconX />
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="w-16 px-2 gantt-cell text-center text-secondary flex items-center justify-center font-mono text-sm">
+                                {activity.duration}
+                              </div>
+                              <div className="w-14 px-2 gantt-cell flex items-center justify-center">
+                                <span className={`tag ${activity.dependency === 'SS' ? 'tag-ss' : 'tag-fs'}`}>
+                                  {activity.dependency || 'FS'}
                                 </span>
-                              )}
-                            </div>
+                              </div>
+                            </>
                           )}
                         </div>
-                      </div>
-                    </div>
-                  );
-                })}
 
-                {/* Footer Row */}
-                <div className="flex bg-gray-100 border-t border-gray-200 h-10">
-                  <div className="flex-shrink-0 flex">
-                    <div className="w-8 border-r border-gray-200 no-print"></div>
-                    <div className="w-64 px-3 font-semibold text-gray-700 border-r border-gray-200 flex items-center">Total Duration</div>
-                    <div className="w-16 px-2 font-semibold text-gray-700 border-r border-gray-200 flex items-center justify-center">
-                      {totalDuration}
+                        {/* Right side - Timeline bar */}
+                        <div className="flex-1 relative min-h-14 overflow-hidden">
+                          <div className="absolute inset-0 flex">
+                            {timelineUnits.map((unit, i) => (
+                              <div
+                                key={i}
+                                className={`timeline-unit h-full ${unit.isWeekend ? 'weekend' : ''}`}
+                                style={{ width: unitWidth, minWidth: unitWidth, borderColor: 'var(--border-secondary)' }}
+                              />
+                            ))}
+                          </div>
+                          <div className="absolute inset-y-0 flex items-center" style={{ left: barPos.left }}>
+                            {activity.duration === 0 ? (
+                              <svg
+                                width="18"
+                                height="18"
+                                viewBox="0 0 20 20"
+                                style={{ marginLeft: '-9px' }}
+                                title={`${activity.name}: ${formatDate(activityStartDate, 'withYear')} (Milestone)`}
+                                className="drop-shadow-sm"
+                              >
+                                <polygon
+                                  points="10,1 19,10 10,19 1,10"
+                                  fill={getFillColor(index)}
+                                  stroke="white"
+                                  strokeWidth="1.5"
+                                />
+                              </svg>
+                            ) : (
+                              <div
+                                className={`${barColor} activity-bar h-7 text-white text-xs flex items-center justify-center`}
+                                style={{ width: barPos.width }}
+                                title={`${activity.name}: ${formatDate(activityStartDate, 'withYear')} - ${formatDate(activityEndDate, 'withYear')} (${activity.duration} days)`}
+                              >
+                                {barPos.width > 130 && (
+                                  <span className="px-2 truncate font-medium text-[11px] tracking-tight opacity-95">
+                                    {formatDate(activityStartDate)} — {formatDate(activityEndDate)}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Footer Row */}
+                  <div className="flex gantt-header h-12">
+                    <div className="flex-shrink-0 flex">
+                      <div className="w-10 gantt-cell no-print"></div>
+                      <div className="w-64 px-4 font-medium text-secondary text-sm gantt-cell flex items-center">
+                        Total Duration
+                      </div>
+                      <div className="w-16 px-2 font-semibold text-primary gantt-cell flex items-center justify-center font-mono">
+                        {totalDuration}
+                      </div>
+                      <div className="w-14 gantt-cell"></div>
                     </div>
-                    <div className="w-14 border-r border-gray-200"></div>
-                  </div>
-                  <div className="flex-1 px-3 flex items-center text-sm text-gray-600">
-                    {activities.length > 0 && (
-                      <span>
-                        {formatDate(projectStartDate, 'withYear')} → {formatDate(addDays(projectStartDate, totalDuration - 1), 'withYear')}
-                      </span>
-                    )}
+                    <div className="flex-1 px-4 flex items-center text-sm text-muted">
+                      {activities.length > 0 && (
+                        <span>
+                          {formatDate(projectStartDate, 'withYear')} — {formatDate(addDays(projectStartDate, totalDuration - 1), 'withYear')}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-
-          <div className="mt-4 text-xs text-gray-500 no-print">
-            <span className="font-medium">Legend:</span>
-            <span className="ml-2 px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">FS</span> Finish-to-Start
-            <span className="ml-3 px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">SS</span> Start-to-Start
-            <span className="ml-3">|</span>
-            <svg className="inline-block ml-2 align-middle" width="12" height="12" viewBox="0 0 20 20">
-              <polygon points="10,0 20,10 10,20 0,10" fill="#3b82f6" />
-            </svg>
-            <span className="ml-1">Milestone (0 days)</span>
-            {timeScale === 'days' && (
-              <>
-                <span className="ml-3">|</span>
-                <span className="ml-2 px-1.5 py-0.5 rounded bg-gray-100">Shaded</span> Weekend
-              </>
             )}
+
+            {/* Legend */}
+            <div className="mt-5 flex flex-wrap items-center gap-4 text-xs text-muted no-print animate-fade-in" style={{ animationDelay: '0.2s' }}>
+              <span className="font-medium text-secondary uppercase tracking-wider">Legend</span>
+              <div className="flex items-center gap-1.5">
+                <span className="tag tag-fs">FS</span>
+                <span>Finish-to-Start</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="tag tag-ss">SS</span>
+                <span>Start-to-Start</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <svg width="12" height="12" viewBox="0 0 20 20">
+                  <polygon points="10,1 19,10 10,19 1,10" fill={getFillColor(0)}/>
+                </svg>
+                <span>Milestone</span>
+              </div>
+              {timeScale === 'days' && (
+                <div className="flex items-center gap-1.5">
+                  <div className="w-4 h-4 rounded weekend" style={{ background: 'var(--bg-weekend)', border: '1px solid var(--border-primary)' }}></div>
+                  <span>Weekend</span>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="mt-8 pt-6 border-t text-center text-xs text-faint no-print animate-fade-in" style={{ animationDelay: '0.25s', borderColor: 'var(--border-primary)' }}>
+              <p>Drag rows to reorder • Click activity to edit • Data auto-saves to browser</p>
+            </div>
           </div>
         </div>
       );
