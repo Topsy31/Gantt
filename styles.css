@@ -810,6 +810,116 @@ input[type="range"]::-webkit-slider-thumb:hover {
   .bar-4 { background: var(--bar-4) !important; }
   .bar-5 { background: var(--bar-5) !important; }
   .bar-6 { background: var(--bar-6) !important; }
+
+  /* Table-based print layout for repeating headers */
+  .gantt-print-table {
+    display: table !important;
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .gantt-print-thead {
+    display: table-header-group !important;
+  }
+
+  .gantt-print-tbody {
+    display: table-row-group !important;
+  }
+
+  .gantt-print-tfoot {
+    display: table-footer-group !important;
+  }
+
+  .gantt-print-row {
+    display: table-row !important;
+    page-break-inside: avoid;
+  }
+
+  .gantt-print-cell {
+    display: table-cell !important;
+    vertical-align: middle;
+    padding: 8px;
+    border-bottom: 1px solid var(--border-secondary);
+  }
+
+  .gantt-print-header-cell {
+    display: table-cell !important;
+    vertical-align: middle;
+    padding: 8px;
+    background: var(--bg-secondary) !important;
+    border-bottom: 2px solid var(--border-primary);
+    font-weight: 500;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+  }
+
+  /* Hide flex-based layout in print when table mode, show table */
+  .gantt-screen-only {
+    display: none !important;
+  }
+
+  .gantt-print-only {
+    display: table !important;
+  }
+
+  /* Chart print mode - table-based chart with visual bars */
+  .gantt-chart-print-only {
+    display: table !important;
+  }
+
+  .gantt-chart-print-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  .gantt-chart-print-table .gantt-timeline-header-cell,
+  .gantt-chart-print-table .gantt-timeline-cell {
+    overflow: visible !important;
+  }
+
+  /* Hide elements marked as hidden during print */
+  .hidden {
+    display: none !important;
+  }
+
+  /* Chart print mode - hide the flex layout, show the table */
+  .card:not(.gantt-screen-only) {
+    box-shadow: none;
+    border: 1px solid #ccc;
+  }
+
+  /* When printing as chart mode, hide the screen flex layout */
+  .gantt-chart-print-only ~ .card,
+  .gantt-print-area > .card:first-of-type {
+    /* This is handled by the gantt-screen-only class logic in JSX */
+  }
+
+  /* Ensure timeline scrolls don't clip in print */
+  .overflow-x-auto {
+    overflow: visible !important;
+  }
+
+  .custom-scroll {
+    overflow: visible !important;
+  }
+}
+
+/* Hide print-only elements on screen */
+.gantt-print-only {
+  display: none;
+}
+
+/* Hide chart print table on screen */
+.gantt-chart-print-only {
+  display: none;
+}
+
+/* Hidden utility class */
+.hidden {
+  display: none;
 }
 
 /* ============================================

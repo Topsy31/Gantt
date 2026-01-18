@@ -60,6 +60,7 @@
       const [unitWidth, setUnitWidth] = useState(36);
       const [timeScale, setTimeScale] = useState('days');
       const [theme, setTheme] = useState(saved?.theme || 'blueprint');
+      const [printMode, setPrintMode] = useState('chart'); // 'chart' or 'table'
 
       const timelineContainerRef = useRef(null);
       const fileInputRef = useRef(null);
@@ -563,7 +564,8 @@
                   />
                 </div>
                 <div className="w-28">
-                  <label className="block text-xs font-medium text-muted uppercase tracking-wider mb-2">Duration</label>
+                  <label className="block text-xs font-medium text-muted uppercase tracking-wider mb-1">Duration</label>
+                  <p className="text-[10px] text-faint mb-1 text-center">0 = milestone</p>
                   <input
                     type="number"
                     placeholder="Days"
@@ -572,6 +574,7 @@
                     onKeyDown={(e) => e.key === 'Enter' && addActivity()}
                     min="0"
                     className="input-refined w-full text-center font-mono"
+                    title="Enter 0 for a milestone"
                   />
                 </div>
                 <button onClick={addActivity} className="btn btn-accent">
@@ -624,6 +627,15 @@
                 <div className="flex-1"></div>
 
                 <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-muted uppercase tracking-wider">Print as</span>
+                  <select
+                    value={printMode}
+                    onChange={(e) => setPrintMode(e.target.value)}
+                    className="select-refined"
+                  >
+                    <option value="chart">Chart</option>
+                    <option value="table">Table</option>
+                  </select>
                   <button onClick={handlePrint} className="btn btn-secondary btn-sm">
                     <IconPrinter /> Print
                   </button>
@@ -667,7 +679,8 @@
                   </p>
                 </div>
 
-                <div className="card overflow-hidden">
+                {/* Screen layout (flex-based) - hidden during print, replaced by table for repeating headers */}
+                <div className="card overflow-hidden gantt-screen-only">
                   {/* Header Row */}
                   <div className="flex gantt-header">
                     <div className="flex-shrink-0 flex">
@@ -873,6 +886,167 @@
                     </div>
                   </div>
                 </div>
+
+                {/* Print layout - TABLE MODE (simple list with dates) */}
+                <table className={`gantt-print-table ${printMode === 'table' ? 'gantt-print-only' : 'hidden'}`}>
+                  <thead className="gantt-print-thead">
+                    <tr className="gantt-print-row">
+                      <th className="gantt-print-header-cell" style={{ width: '45%' }}>Activity</th>
+                      <th className="gantt-print-header-cell" style={{ width: '10%', textAlign: 'center' }}>Days</th>
+                      <th className="gantt-print-header-cell" style={{ width: '10%', textAlign: 'center' }}>Type</th>
+                      <th className="gantt-print-header-cell" style={{ width: '35%' }}>Dates</th>
+                    </tr>
+                  </thead>
+                  <tbody className="gantt-print-tbody">
+                    {activities.map((activity, index) => {
+                      const start = startTimes[index];
+                      const activityStartDate = addDays(projectStartDate, start);
+                      const activityEndDate = addDays(projectStartDate, start + activity.duration - 1);
+                      return (
+                        <tr key={activity.id} className="gantt-print-row">
+                          <td className="gantt-print-cell">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              {activity.duration === 0 ? (
+                                <svg width="14" height="14" viewBox="0 0 20 20">
+                                  <polygon points="10,1 19,10 10,19 1,10" fill={getFillColor(index)}/>
+                                </svg>
+                              ) : (
+                                <div style={{
+                                  width: '14px',
+                                  height: '14px',
+                                  borderRadius: '3px',
+                                  background: getFillColor(index)
+                                }}></div>
+                              )}
+                              <span>{activity.name}</span>
+                            </div>
+                          </td>
+                          <td className="gantt-print-cell" style={{ textAlign: 'center', fontFamily: 'var(--font-mono)' }}>
+                            {activity.duration}
+                          </td>
+                          <td className="gantt-print-cell" style={{ textAlign: 'center' }}>
+                            <span className={`tag ${activity.dependency === 'SS' ? 'tag-ss' : 'tag-fs'}`}>
+                              {activity.dependency || 'FS'}
+                            </span>
+                          </td>
+                          <td className="gantt-print-cell">
+                            {activity.duration === 0
+                              ? formatDate(activityStartDate, 'withYear') + ' (Milestone)'
+                              : `${formatDate(activityStartDate, 'withYear')} — ${formatDate(activityEndDate, 'withYear')}`
+                            }
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot className="gantt-print-tfoot">
+                    <tr className="gantt-print-row">
+                      <td className="gantt-print-cell" style={{ fontWeight: '600' }}>Total Duration</td>
+                      <td className="gantt-print-cell" style={{ textAlign: 'center', fontWeight: '700', fontFamily: 'var(--font-mono)' }}>{totalDuration}</td>
+                      <td className="gantt-print-cell"></td>
+                      <td className="gantt-print-cell">
+                        {formatDate(projectStartDate, 'withYear')} — {formatDate(addDays(projectStartDate, totalDuration - 1), 'withYear')}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+
+                {/* Print layout - CHART MODE (visual bars with repeating timeline headers) */}
+                <table className={`gantt-chart-print-table ${printMode === 'chart' ? 'gantt-chart-print-only' : 'hidden'}`}>
+                  <thead className="gantt-print-thead">
+                    <tr className="gantt-print-row">
+                      <th className="gantt-print-header-cell" style={{ width: '200px', minWidth: '200px' }}>Activity</th>
+                      <th className="gantt-print-header-cell" style={{ width: '50px', minWidth: '50px', textAlign: 'center' }}>Days</th>
+                      <th className="gantt-print-header-cell" style={{ width: '50px', minWidth: '50px', textAlign: 'center' }}>Type</th>
+                      <th className="gantt-print-header-cell gantt-timeline-header-cell" style={{ padding: 0 }}>
+                        <div style={{ display: 'flex', width: timelineWidth, minWidth: '100%' }}>
+                          {timelineUnits.map((unit, i) => (
+                            <div
+                              key={i}
+                              style={{
+                                width: unitWidth,
+                                minWidth: unitWidth,
+                                textAlign: 'center',
+                                padding: '6px 0',
+                                borderRight: '1px solid var(--border-secondary)',
+                                background: unit.isWeekend ? 'var(--bg-weekend)' : 'var(--bg-secondary)'
+                              }}
+                            >
+                              <div style={{ fontWeight: 500, fontSize: '10px', lineHeight: 1.2 }}>{unit.label}</div>
+                              <div style={{ fontSize: '9px', color: 'var(--text-faint)', lineHeight: 1.2 }}>{unit.subLabel}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="gantt-print-tbody">
+                    {activities.map((activity, index) => {
+                      const start = startTimes[index];
+                      const activityStartDate = addDays(projectStartDate, start);
+                      const activityEndDate = addDays(projectStartDate, start + activity.duration - 1);
+                      const barPos = getBarPosition(start, activity.duration);
+                      return (
+                        <tr key={activity.id} className="gantt-print-row">
+                          <td className="gantt-print-cell" style={{ width: '200px', minWidth: '200px' }}>
+                            <span style={{ fontSize: '12px' }}>{activity.name}</span>
+                          </td>
+                          <td className="gantt-print-cell" style={{ width: '50px', minWidth: '50px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>
+                            {activity.duration}
+                          </td>
+                          <td className="gantt-print-cell" style={{ width: '50px', minWidth: '50px', textAlign: 'center' }}>
+                            <span className={`tag ${activity.dependency === 'SS' ? 'tag-ss' : 'tag-fs'}`}>
+                              {activity.dependency || 'FS'}
+                            </span>
+                          </td>
+                          <td className="gantt-print-cell gantt-timeline-cell" style={{ padding: 0, position: 'relative', height: '36px' }}>
+                            {/* Timeline grid background */}
+                            <div style={{ display: 'flex', position: 'absolute', inset: 0, width: timelineWidth }}>
+                              {timelineUnits.map((unit, i) => (
+                                <div
+                                  key={i}
+                                  style={{
+                                    width: unitWidth,
+                                    minWidth: unitWidth,
+                                    height: '100%',
+                                    borderRight: '1px solid var(--border-secondary)',
+                                    background: unit.isWeekend ? 'var(--bg-weekend)' : 'transparent'
+                                  }}
+                                />
+                              ))}
+                            </div>
+                            {/* Activity bar */}
+                            <div style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', left: barPos.left }}>
+                              {activity.duration === 0 ? (
+                                <svg width="14" height="14" viewBox="0 0 20 20" style={{ marginLeft: '-7px' }}>
+                                  <polygon points="10,1 19,10 10,19 1,10" fill={getFillColor(index)}/>
+                                </svg>
+                              ) : (
+                                <div
+                                  style={{
+                                    width: barPos.width,
+                                    height: '20px',
+                                    background: getFillColor(index),
+                                    borderRadius: 'var(--radius-md)',
+                                    boxShadow: 'var(--shadow-bar)'
+                                  }}
+                                />
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot className="gantt-print-tfoot">
+                    <tr className="gantt-print-row">
+                      <td className="gantt-print-cell" style={{ fontWeight: '600', fontSize: '12px' }}>Total: {totalDuration} days</td>
+                      <td className="gantt-print-cell" colSpan="3" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                        {formatDate(projectStartDate, 'withYear')} — {formatDate(addDays(projectStartDate, totalDuration - 1), 'withYear')}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
               </div>
             )}
 
