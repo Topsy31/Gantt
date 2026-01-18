@@ -85,11 +85,20 @@
         }
       };
 
+      // Break long words (over 16 chars) to prevent layout issues
+      const breakLongWords = (text) => {
+        return text.split(' ').map(word => {
+          if (word.length <= 16) return word;
+          // Insert spaces every 16 characters
+          return word.match(/.{1,16}/g).join(' ');
+        }).join(' ');
+      };
+
       const addActivity = () => {
         if (name.trim() && duration >= 0 && duration !== '') {
           setActivities([...activities, {
             id: Date.now(),
-            name: name.trim(),
+            name: breakLongWords(name.trim().slice(0, 100)),
             duration: parseInt(duration),
             dependency: 'FS'
           }]);
@@ -116,7 +125,7 @@
         if (editForm.name.trim() && editForm.duration >= 0 && editForm.duration !== '') {
           setActivities(activities.map(a =>
             a.id === editingId
-              ? { ...a, name: editForm.name.trim(), duration: parseInt(editForm.duration), dependency: editForm.dependency }
+              ? { ...a, name: breakLongWords(editForm.name.trim().slice(0, 100)), duration: parseInt(editForm.duration), dependency: editForm.dependency }
               : a
           ));
           setEditingId(null);
@@ -438,11 +447,12 @@
               <div className="flex-1 flex gap-3">
                 <input
                   type="text"
-                  placeholder="Activity name"
+                  placeholder="Activity name / description"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && addActivity()}
-                  className="flex-1 min-w-32 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  maxLength={100}
+                  className="flex-1 min-w-64 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <input
                   type="number"
@@ -571,225 +581,214 @@
               </div>
 
               <div className="border border-gray-200 rounded-lg overflow-hidden">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <div className="flex bg-gray-100 border-b border-gray-200">
-                      <div className="w-8 px-2 py-2 border-r border-gray-200 no-print"></div>
-                      <div className="w-40 px-3 py-2 font-semibold text-gray-700 border-r border-gray-200">Activity</div>
-                      <div className="w-16 px-2 py-2 font-semibold text-gray-700 border-r border-gray-200 text-center">Days</div>
-                      <div className="w-14 px-2 py-2 font-semibold text-gray-700 border-r border-gray-200 text-center">Type</div>
-                    </div>
+                {/* Header Row */}
+                <div className="flex bg-gray-100 border-b border-gray-200">
+                  <div className="flex-shrink-0 flex">
+                    <div className="w-8 px-2 py-2 border-r border-gray-200 no-print"></div>
+                    <div className="w-64 px-3 py-2 font-semibold text-gray-700 border-r border-gray-200">Activity</div>
+                    <div className="w-16 px-2 py-2 font-semibold text-gray-700 border-r border-gray-200 text-center">Days</div>
+                    <div className="w-14 px-2 py-2 font-semibold text-gray-700 border-r border-gray-200 text-center">Type</div>
+                  </div>
+                  <div className="flex-1 px-2 py-2 font-semibold text-gray-700">
+                    Timeline ({timeScale})
+                  </div>
+                </div>
 
-                    <div className="flex bg-gray-50 border-b border-gray-200 h-12">
-                      <div className="w-8 border-r border-gray-200 no-print"></div>
-                      <div className="w-40 border-r border-gray-200"></div>
-                      <div className="w-16 border-r border-gray-200"></div>
-                      <div className="w-14 border-r border-gray-200"></div>
-                    </div>
-
-                    {activities.map((activity, index) => {
-                      const isDragging = draggedIndex === index;
-                      const isDragOver = dragOverIndex === index;
-                      const isEditing = editingId === activity.id;
-
-                      return (
+                {/* Timeline Header Row */}
+                <div className="flex border-b border-gray-200">
+                  <div className="flex-shrink-0 flex bg-gray-50 h-12">
+                    <div className="w-8 border-r border-gray-200 no-print"></div>
+                    <div className="w-64 border-r border-gray-200"></div>
+                    <div className="w-16 border-r border-gray-200"></div>
+                    <div className="w-14 border-r border-gray-200"></div>
+                  </div>
+                  <div className="flex-1 overflow-x-auto" ref={timelineContainerRef}>
+                    <div className="flex bg-gray-50 text-xs text-gray-500 h-12" style={{ width: timelineWidth, minWidth: '100%' }}>
+                      {timelineUnits.map((unit, i) => (
                         <div
-                          key={activity.id}
-                          draggable={!isEditing}
-                          onDragStart={(e) => handleDragStart(e, index)}
-                          onDragOver={(e) => handleDragOver(e, index)}
-                          onDragLeave={handleDragLeave}
-                          onDrop={(e) => handleDrop(e, index)}
-                          onDragEnd={handleDragEnd}
-                          className={`
-                            flex border-b border-gray-200 last:border-b-0 transition-all duration-150 h-12
-                            ${isDragging ? 'opacity-50 bg-blue-50' : 'hover:bg-gray-50'}
-                            ${isDragOver ? 'border-t-2 border-t-blue-500' : ''}
-                            ${isEditing ? 'bg-yellow-50' : ''}
-                          `}
+                          key={i}
+                          className={`text-center border-r border-gray-200 last:border-r-0 flex flex-col justify-center
+                            ${unit.isWeekend ? 'bg-gray-100' : ''}
+                            ${unit.isFirstOfPeriod ? 'border-l-2 border-l-gray-400' : ''}`}
+                          style={{ width: unitWidth, minWidth: unitWidth }}
                         >
-                          <div className="w-8 px-2 border-r border-gray-200 flex items-center justify-center cursor-grab active:cursor-grabbing no-print">
-                            <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                              <path d="M7 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/>
-                            </svg>
-                          </div>
-
-                          {isEditing ? (
-                            <>
-                              <div className="w-40 px-2 border-r border-gray-200 flex items-center gap-1 no-print">
-                                <input
-                                  type="text"
-                                  value={editForm.name}
-                                  onChange={(e) => setEditForm({...editForm, name: e.target.value})}
-                                  className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                  autoFocus
-                                />
-                                <button onClick={saveEdit} className="p-1 text-green-600 hover:text-green-700" title="Save">
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                  </svg>
-                                </button>
-                                <button onClick={cancelEdit} className="p-1 text-red-500 hover:text-red-600" title="Cancel">
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                  </svg>
-                                </button>
-                              </div>
-                              <div className="w-16 px-1 border-r border-gray-200 flex items-center no-print">
-                                <input
-                                  type="number"
-                                  value={editForm.duration}
-                                  onChange={(e) => setEditForm({...editForm, duration: e.target.value})}
-                                  min="0"
-                                  className="w-full px-1 py-1 text-sm text-center border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                />
-                              </div>
-                              <div className="w-14 px-1 border-r border-gray-200 flex items-center no-print">
-                                <select
-                                  value={editForm.dependency}
-                                  onChange={(e) => setEditForm({...editForm, dependency: e.target.value})}
-                                  className="w-full px-1 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                >
-                                  <option value="FS">FS</option>
-                                  <option value="SS">SS</option>
-                                </select>
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <div className="w-40 px-3 border-r border-gray-200 flex items-center justify-between">
-                                <span className="truncate">{activity.name}</span>
-                                <div className="flex items-center gap-1 ml-2 no-print">
-                                  <button onClick={() => startEditing(activity)} className="text-gray-400 hover:text-blue-500" title="Edit">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                    </svg>
-                                  </button>
-                                  <button onClick={() => removeActivity(activity.id)} className="text-gray-400 hover:text-red-500 text-lg leading-none" title="Delete">
-                                    ×
-                                  </button>
-                                </div>
-                              </div>
-                              <div className="w-16 px-2 border-r border-gray-200 text-center text-gray-600 flex items-center justify-center">
-                                {activity.duration}
-                              </div>
-                              <div className="w-14 px-2 border-r border-gray-200 flex items-center justify-center">
-                                <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
-                                  activity.dependency === 'SS'
-                                    ? 'bg-amber-100 text-amber-700'
-                                    : 'bg-blue-100 text-blue-700'
-                                }`}>
-                                  {activity.dependency || 'FS'}
-                                </span>
-                              </div>
-                            </>
-                          )}
+                          <div className="font-medium leading-tight truncate px-0.5">{unit.label}</div>
+                          <div className="text-gray-400 text-xs truncate leading-tight px-0.5">{unit.subLabel}</div>
                         </div>
-                      );
-                    })}
-
-                    <div className="flex bg-gray-100 border-t border-gray-200 h-10">
-                      <div className="w-8 border-r border-gray-200 no-print"></div>
-                      <div className="w-40 px-3 font-semibold text-gray-700 border-r border-gray-200 flex items-center">Total Duration</div>
-                      <div className="w-16 px-2 font-semibold text-gray-700 border-r border-gray-200 flex items-center justify-center">
-                        {totalDuration}
-                      </div>
-                      <div className="w-14 border-r border-gray-200"></div>
+                      ))}
                     </div>
                   </div>
+                </div>
 
-                  <div className="flex-1 overflow-x-auto" ref={timelineContainerRef}>
-                    <div style={{ width: timelineWidth, minWidth: '100%' }}>
-                      <div className="bg-gray-100 border-b border-gray-200 px-2 py-2 font-semibold text-gray-700">
-                        Timeline ({timeScale})
-                      </div>
+                {/* Activity Rows */}
+                {activities.map((activity, index) => {
+                  const isDragging = draggedIndex === index;
+                  const isDragOver = dragOverIndex === index;
+                  const isEditing = editingId === activity.id;
+                  const start = startTimes[index];
+                  const color = colors[index % colors.length];
+                  const activityStartDate = addDays(projectStartDate, start);
+                  const activityEndDate = addDays(projectStartDate, start + activity.duration - 1);
+                  const barPos = getBarPosition(start, activity.duration);
 
-                      <div className="flex bg-gray-50 border-b border-gray-200 text-xs text-gray-500 h-12">
-                        {timelineUnits.map((unit, i) => (
-                          <div
-                            key={i}
-                            className={`text-center border-r border-gray-200 last:border-r-0 flex flex-col justify-center
-                              ${unit.isWeekend ? 'bg-gray-100' : ''}
-                              ${unit.isFirstOfPeriod ? 'border-l-2 border-l-gray-400' : ''}`}
-                            style={{ width: unitWidth, minWidth: unitWidth }}
-                          >
-                            <div className="font-medium leading-tight truncate px-0.5">{unit.label}</div>
-                            <div className="text-gray-400 text-xs truncate leading-tight px-0.5">{unit.subLabel}</div>
-                          </div>
-                        ))}
-                      </div>
+                  return (
+                    <div
+                      key={activity.id}
+                      draggable={!isEditing}
+                      onDragStart={(e) => handleDragStart(e, index)}
+                      onDragOver={(e) => handleDragOver(e, index)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, index)}
+                      onDragEnd={handleDragEnd}
+                      className={`
+                        flex border-b border-gray-200 last:border-b-0 transition-all duration-150
+                        ${isDragging ? 'opacity-50 bg-blue-50' : 'hover:bg-gray-50'}
+                        ${isDragOver ? 'border-t-2 border-t-blue-500' : ''}
+                        ${isEditing ? 'bg-yellow-50' : ''}
+                      `}
+                    >
+                      {/* Left side - Activity info */}
+                      <div className="flex-shrink-0 flex min-h-12">
+                        <div className="w-8 px-2 border-r border-gray-200 flex items-center justify-center cursor-grab active:cursor-grabbing no-print">
+                          <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M7 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM13 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/>
+                          </svg>
+                        </div>
 
-                      {activities.map((activity, index) => {
-                        const start = startTimes[index];
-                        const color = colors[index % colors.length];
-                        const isDragging = draggedIndex === index;
-                        const isDragOver = dragOverIndex === index;
-                        const isEditing = editingId === activity.id;
-
-                        const activityStartDate = addDays(projectStartDate, start);
-                        const activityEndDate = addDays(projectStartDate, start + activity.duration - 1);
-                        const barPos = getBarPosition(start, activity.duration);
-
-                        return (
-                          <div
-                            key={activity.id}
-                            className={`
-                              relative border-b border-gray-200 last:border-b-0 h-12 transition-all duration-150
-                              ${isDragging ? 'opacity-50 bg-blue-50' : ''}
-                              ${isDragOver ? 'border-t-2 border-t-blue-500' : ''}
-                              ${isEditing ? 'bg-yellow-50' : ''}
-                            `}
-                          >
-                            <div className="absolute inset-0 flex">
-                              {timelineUnits.map((unit, i) => (
-                                <div
-                                  key={i}
-                                  className={`border-r border-gray-100 ${unit.isWeekend ? 'bg-gray-50' : ''}`}
-                                  style={{ width: unitWidth, minWidth: unitWidth }}
-                                />
-                              ))}
-                            </div>
-                            <div className="absolute inset-y-0 flex items-center" style={{ left: barPos.left }}>
-                              {activity.duration === 0 ? (
-                                <svg
-                                  width="20"
-                                  height="20"
-                                  viewBox="0 0 20 20"
-                                  style={{ marginLeft: '-10px' }}
-                                  title={`${activity.name}: ${formatDate(activityStartDate, 'withYear')} (Milestone)`}
-                                >
-                                  <polygon
-                                    points="10,0 20,10 10,20 0,10"
-                                    fill={fillColors[index % fillColors.length]}
-                                    className="drop-shadow-sm"
-                                  />
+                        {isEditing ? (
+                          <>
+                            <div className="w-64 px-2 border-r border-gray-200 flex items-center gap-1 no-print">
+                              <input
+                                type="text"
+                                value={editForm.name}
+                                onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                                maxLength={100}
+                                className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                autoFocus
+                              />
+                              <button onClick={saveEdit} className="p-1 text-green-600 hover:text-green-700" title="Save">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                 </svg>
-                              ) : (
-                                <div
-                                  className={`${color} h-8 rounded text-white text-xs flex items-center justify-center shadow-sm`}
-                                  style={{ width: barPos.width }}
-                                  title={`${activity.name}: ${formatDate(activityStartDate, 'withYear')} - ${formatDate(activityEndDate, 'withYear')} (${activity.duration} days)`}
-                                >
-                                  {barPos.width > 120 && (
-                                    <span className="px-1 truncate">
-                                      {formatDate(activityStartDate, 'withYear')} - {formatDate(activityEndDate, 'withYear')}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
+                              </button>
+                              <button onClick={cancelEdit} className="p-1 text-red-500 hover:text-red-600" title="Cancel">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
                             </div>
-                          </div>
-                        );
-                      })}
-
-                      <div className="bg-gray-100 border-t border-gray-200 h-10 px-3 flex items-center text-sm text-gray-600">
-                        {activities.length > 0 && (
-                          <span>
-                            {formatDate(projectStartDate, 'withYear')} → {formatDate(addDays(projectStartDate, totalDuration - 1), 'withYear')}
-                          </span>
+                            <div className="w-16 px-1 border-r border-gray-200 flex items-center no-print">
+                              <input
+                                type="number"
+                                value={editForm.duration}
+                                onChange={(e) => setEditForm({...editForm, duration: e.target.value})}
+                                min="0"
+                                className="w-full px-1 py-1 text-sm text-center border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              />
+                            </div>
+                            <div className="w-14 px-1 border-r border-gray-200 flex items-center no-print">
+                              <select
+                                value={editForm.dependency}
+                                onChange={(e) => setEditForm({...editForm, dependency: e.target.value})}
+                                className="w-full px-1 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              >
+                                <option value="FS">FS</option>
+                                <option value="SS">SS</option>
+                              </select>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="w-64 px-3 py-2 border-r border-gray-200 flex items-start justify-between">
+                              <span className="text-sm leading-tight break-words">{activity.name}</span>
+                              <div className="flex items-center gap-1 ml-2 flex-shrink-0 no-print">
+                                <button onClick={() => startEditing(activity)} className="text-gray-400 hover:text-blue-500" title="Edit">
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                  </svg>
+                                </button>
+                                <button onClick={() => removeActivity(activity.id)} className="text-gray-400 hover:text-red-500 text-lg leading-none" title="Delete">
+                                  ×
+                                </button>
+                              </div>
+                            </div>
+                            <div className="w-16 px-2 border-r border-gray-200 text-center text-gray-600 flex items-center justify-center">
+                              {activity.duration}
+                            </div>
+                            <div className="w-14 px-2 border-r border-gray-200 flex items-center justify-center">
+                              <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
+                                activity.dependency === 'SS'
+                                  ? 'bg-amber-100 text-amber-700'
+                                  : 'bg-blue-100 text-blue-700'
+                              }`}>
+                                {activity.dependency || 'FS'}
+                              </span>
+                            </div>
+                          </>
                         )}
                       </div>
+
+                      {/* Right side - Timeline bar */}
+                      <div className="flex-1 relative min-h-12 overflow-hidden">
+                        <div className="absolute inset-0 flex">
+                          {timelineUnits.map((unit, i) => (
+                            <div
+                              key={i}
+                              className={`border-r border-gray-100 h-full ${unit.isWeekend ? 'bg-gray-50' : ''}`}
+                              style={{ width: unitWidth, minWidth: unitWidth }}
+                            />
+                          ))}
+                        </div>
+                        <div className="absolute inset-y-0 flex items-center" style={{ left: barPos.left }}>
+                          {activity.duration === 0 ? (
+                            <svg
+                              width="20"
+                              height="20"
+                              viewBox="0 0 20 20"
+                              style={{ marginLeft: '-10px' }}
+                              title={`${activity.name}: ${formatDate(activityStartDate, 'withYear')} (Milestone)`}
+                            >
+                              <polygon
+                                points="10,0 20,10 10,20 0,10"
+                                fill={fillColors[index % fillColors.length]}
+                                className="drop-shadow-sm"
+                              />
+                            </svg>
+                          ) : (
+                            <div
+                              className={`${color} h-8 rounded text-white text-xs flex items-center justify-center shadow-sm`}
+                              style={{ width: barPos.width }}
+                              title={`${activity.name}: ${formatDate(activityStartDate, 'withYear')} - ${formatDate(activityEndDate, 'withYear')} (${activity.duration} days)`}
+                            >
+                              {barPos.width > 120 && (
+                                <span className="px-1 truncate">
+                                  {formatDate(activityStartDate, 'withYear')} - {formatDate(activityEndDate, 'withYear')}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
+                  );
+                })}
+
+                {/* Footer Row */}
+                <div className="flex bg-gray-100 border-t border-gray-200 h-10">
+                  <div className="flex-shrink-0 flex">
+                    <div className="w-8 border-r border-gray-200 no-print"></div>
+                    <div className="w-64 px-3 font-semibold text-gray-700 border-r border-gray-200 flex items-center">Total Duration</div>
+                    <div className="w-16 px-2 font-semibold text-gray-700 border-r border-gray-200 flex items-center justify-center">
+                      {totalDuration}
+                    </div>
+                    <div className="w-14 border-r border-gray-200"></div>
+                  </div>
+                  <div className="flex-1 px-3 flex items-center text-sm text-gray-600">
+                    {activities.length > 0 && (
+                      <span>
+                        {formatDate(projectStartDate, 'withYear')} → {formatDate(addDays(projectStartDate, totalDuration - 1), 'withYear')}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
